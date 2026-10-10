@@ -1,0 +1,51 @@
+
+const express = require("express");
+
+const app = express();
+
+app.use(express.json({ limit: "20kb" }));
+
+app.get("/", (req, res) => {
+  res.send("CodeVibe backend is running!");
+});
+
+app.post("/run", async (req, res) => {
+  try {
+    const { code } = req.body;
+
+    if (typeof code !== "string" || !code.trim()) {
+      return res.status(400).json({ error: "Please enter C code." });
+    }
+
+    if (code.length > 15000) {
+      return res.status(400).json({ error: "Code is too long." });
+    }
+
+    const response = await fetch("https://api.jdoodle.com/v1/execute", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        clientId: process.env.JDOODLE_CLIENT_ID,
+        clientSecret: process.env.JDOODLE_CLIENT_SECRET,
+        script: code,
+        language: "c",
+        versionIndex: "5"
+      })
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      return res.status(502).json({
+        error: result.error || "JDoodle request failed."
+      });
+    }
+
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: "Could not reach the compiler." });
+  }
+});
+
+const port = process.env.PORT || 3000;
+app.listen(port, () => console.log(`CodeVibe running on ${port}`));
